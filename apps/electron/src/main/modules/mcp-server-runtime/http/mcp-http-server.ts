@@ -206,6 +206,55 @@ export class MCPHttpServer {
         }
       }
     });
+
+    // GET /mcp - Optional Streamable HTTP SSE handshake endpoint
+    this.app.get("/mcp", async (req, res) => {
+      try {
+        const platformManager = getPlatformAPIManager();
+        if (platformManager.isRemoteWorkspace()) {
+          console.warn(
+            "Remote aggregator Streamable HTTP not yet implemented, using local aggregator",
+          );
+        }
+
+        await this.aggregatorServer
+          .getTransport()
+          .handleRequest(req, res);
+      } catch (error) {
+        console.error("Error handling MCP GET request:", error);
+        if (!res.headersSent) {
+          res.status(500).json({
+            jsonrpc: "2.0",
+            error: {
+              code: -32603,
+              message: "Failed to open MCP stream",
+            },
+            id: null,
+          });
+        }
+      }
+    });
+
+    // DELETE /mcp - Allow clients to terminate Streamable HTTP sessions
+    this.app.delete("/mcp", async (req, res) => {
+      try {
+        await this.aggregatorServer
+          .getTransport()
+          .handleRequest(req, res);
+      } catch (error) {
+        console.error("Error handling MCP DELETE request:", error);
+        if (!res.headersSent) {
+          res.status(500).json({
+            jsonrpc: "2.0",
+            error: {
+              code: -32603,
+              message: "Failed to terminate MCP session",
+            },
+            id: null,
+          });
+        }
+      }
+    });
   }
 
   /**
